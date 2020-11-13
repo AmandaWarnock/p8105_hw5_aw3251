@@ -89,7 +89,72 @@ results_df %>%
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) 
 ```
 
+## Problem 2
 
+Import the 20 files. 
+
+```{r}
+path_df = 
+  tibble(
+    path = list.files("./lddata")
+  ) %>% 
+  mutate(
+    path = str_c("lddata/", path),
+    path_names = path,
+    data = map(path, read_csv)
+    ) %>% 
+  separate(col = path_names, into = c("path_1", "path_2"), sep = 7, remove = T) %>% 
+  separate(col = path_2, into = c("arm", "ID"), sep = 3) %>% 
+  separate(col = ID, into = c("underscore", "ID"), sep = 1, remove = T) %>% 
+  separate(col = ID, into = c("ID", "csv"), sep = 2, remove = T) %>% 
+  select(-path_1, -underscore, -csv) %>% 
+  mutate(
+    arm = str_replace(arm, "con", "Control"),
+    arm = str_replace(arm, "exp", "Experiment")) %>% 
+  unnest(data) %>% 
+  pivot_longer(
+    week_1:week_8,
+    names_to = "week", 
+    values_to = "observation"
+  )
+```
+
+Make a spaghetti plot showing observations 
+
+## Problem 3
+
+simulate sample from normal distribution of 30 w sd of 5. change mean from 0 to 1, 2, 3, 4, 5. for each mean, generate 5000 datasets. Not exporting mean and sd - exporting the results of the ttest of whether the mean = 0. reject or fail to reject 5% of time, etc. point: see what happens as you move from 0 to 5. 
+make plot of estimated mean when true mean is 0-5, filter for when p <0.05 and then compute mean. start with simmean and sd function we wrote in class and modify. plots are summaries of that p values and estimates based on whether thigns are significant. always testing null hyp that mean = 0. 
+```{r}
+sim_ttest = function(n, mu = 0, sigma = 5) {
+  
+  sim_data = tibble(
+    x = rnorm(n = 30, mean = mu, sd = sigma),
+  )
+  
+    ttest=t.test(sim_data, mu=0, sd=5)
+    ttest[['p.value']]
+    ttest[['estimate']]
+    
+  sim_results = tibble(
+     pvalue = ttest[['p.value']],
+     mean = ttest[['estimate']]
+  )
+
+}
+
+output = vector("list", 100)
+
+for (i in 1:100) {
+  output[[i]] = sim_ttest(30)
+}
+sim_results = bind_rows(output)
+```
+
+```{r}
+sim_results1 = 
+  rerun(5000, )
+```
 
 
 
