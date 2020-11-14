@@ -31,7 +31,7 @@ scale_fill_discrete = scale_fill_viridis_d
 
 ## Problem 1
 
-Read in the data
+Read in the data.
 ```{r}
 homicide_df = 
   read_csv("./data/homicide-data.csv") %>% 
@@ -47,7 +47,7 @@ homicide_df =
   filter(city_state != "Tulsa_AL")
 ```
 
-Let's look at this a bit
+Let's look at this a bit.
 
 ```{r}
 aggregate_df = 
@@ -157,19 +157,43 @@ sim_ttest = function(n, mu = 0, sigma = 5) {
 
 }
 
-output = vector("list", 100)
+output = vector("list", 5000)
 
-for (i in 1:100) {
-  output[[i]] = sim_ttest(30)
+for (i in 1:5000) {
+  output[[i]] = sim_ttest(30) 
 }
 sim_results = bind_rows(output)
 ```
 
+Testing the simulation in rerun. 
+
 ```{r}
 sim_results1 = 
-  rerun(5000, )
+  rerun(5000, sim_ttest(30, 1, 5)) %>% 
+  bind_rows()
 ```
 
+Simulating across multiple means. 
+
+```{r}
+m_list = 
+  list(
+    "n_0" = 0,
+    "n_1" = 1,
+    "n_2" = 2,
+    "n_3" = 3,
+    "n_4" = 4,
+    "n_5" = 5,
+    "n_6" = 6
+  )
+
+output = vector("list", length = 4)
+
+for (i in 1:7) {
+  ouput[[i]] = rerun(5000, sim_ttest, 30, m_list[[i]], 5) %>% 
+    bind_rows
+}
+```
 
 
 
