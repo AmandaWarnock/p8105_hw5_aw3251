@@ -11,6 +11,7 @@ library(tidyverse)
 library(rvest)
 library(ggplot2)
 library(data.table)
+library(patchwork)
 knitr::opts_chunk$set(
   fig.width = 6,
   fig.asp = .6,
@@ -26,6 +27,8 @@ options(
 
 scale_color_discrete = scale_color_viridis_d
 scale_fill_discrete = scale_fill_viridis_d
+
+set.seed(1)
 ```
 
 
@@ -137,8 +140,6 @@ This plot shows that overall, the observations for the subjects in the experimen
 
 ## Problem 3
 
-simulate sample from normal distribution of 30 w sd of 5. change mean from 0 to 1, 2, 3, 4, 5. for each mean, generate 5000 datasets. Not exporting mean and sd - exporting the results of the ttest of whether the mean = 0. reject or fail to reject 5% of time, etc. point: see what happens as you move from 0 to 5. 
-make plot of estimated mean when true mean is 0-5, filter for when p <0.05 and then compute mean. start with simmean and sd function we wrote in class and modify. plots are summaries of that p values and estimates based on whether thigns are significant. always testing null hyp that mean = 0. 
 ```{r}
 sim_ttest = function(n, mu = 0, sigma = 5) {
   
@@ -178,23 +179,87 @@ Simulating across multiple means.
 ```{r}
 m_list = 
   list(
-    "n_0" = 0,
-    "n_1" = 1,
-    "n_2" = 2,
-    "n_3" = 3,
-    "n_4" = 4,
-    "n_5" = 5,
-    "n_6" = 6
+    "m_0" = 0,
+    "m_1" = 1,
+    "m_2" = 2,
+    "m_3" = 3,
+    "m_4" = 4,
+    "m_5" = 5,
+    "m_6" = 6
   )
 
-output = vector("list", length = 4)
+output = vector("list", length = 7)
 
 for (i in 1:7) {
-  ouput[[i]] = rerun(5000, sim_ttest, 30, m_list[[i]], 5) %>% 
-    bind_rows
+  output[[i]] = rerun(5000, sim_ttest(30, m_list[[i]], 5)) %>% 
+    bind_rows()
 }
+sim_full_results=bind_rows(output) 
 ```
 
+```{r}
+sim_full_results = 
+  tibble(mus = c(0, 1, 2, 3, 4, 5, 6)) %>% 
+  mutate(
+    output_lists = map(.x = mus, ~rerun(5000, sim_ttest(30, .x, 5))),
+    estimate_dfs = map(output_lists, bind_rows)) %>% 
+  select(-output_lists) %>% 
+  unnest(estimate_dfs)
+```
 
+Plots
+```{r}
+results_df = 
+  sim_full_results %>% 
+  mutate(
+    decision = case_when(
+      pvalue >= 0.05 ~ "fail to reject",
+      pvalue < 0.05 ~ "reject"
+    )
+  ) %>% 
+  filter(decision == "reject") %>% 
+  group_by(mus) %>% 
+  summarize(power = n()/5000)
 
+plot_1 =
+results_df %>% 
+  ggplot(aes(x = mus, y = power)) +
+  geom_point() +
+  geom_line() +
+  labs(
+    title = "Proportion of times the null is rejected",
+    x = "True Value of Mu",
+    y = "Power")
 
+plot_1
+ ```
+
+As the Mu increases from 0 to 6, the proportion of the time that the null hypothesis is rejected increases. Effect size and power increase together as we increase Mus. 
+
+ 
+```{r}
+plot_all = 
+sim_full_results %>% 
+  mutate(
+    mus = str_c("Mu = ", mus),
+    mus = fct_inorder(mus)) %>% 
+  ggplot(aes(x = mus, y = mean, fill = mus)) +
+  geom_violin() +
+  labs(title = "Estimate and Mu in all stamples") +
+  stat_summary(fun=mean, geom="point",  size=1)
+
+plot_reject =
+sim_full_results %>% 
+  mutate(
+    mus = str_c("Mu = ", mus),
+    mus = fct_inorder(mus)) %>% 
+  filter(pvalue < 0.05) %>% 
+  ggplot(aes(x = mus, y = mean, fill = mus)) +
+  geom_violin() +
+  labs(title = "Estimate and Mu only where null is rejected") +
+  stat_summary(fun=mean, geom="point", size=1)
+
+plot_all + plot_reject
+```
+
+In cases where the null is rejected, the average mu-hat is about equal to the true value of Mu because the power of the test is so high given the huge sample size and the large effect size. However, it is more accurate when the whole sample is included. 
